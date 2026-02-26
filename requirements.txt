@@ -1,0 +1,7 @@
+streamlit
+tensorflow
+librosa
+matplotlib
+numpy
+pandas
+audio-recorder-streamlit

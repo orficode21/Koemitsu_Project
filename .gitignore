@@ -179,3 +179,15 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Environments
+venv/
+.env
+
+# Model Files (Opsional: Kalau file .h5 kamu > 100MB, GitHub bakal nolak)
+# Kalau < 100MB, gak usah ditulis di sini biar ikut keupload.
+# *.h5
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
