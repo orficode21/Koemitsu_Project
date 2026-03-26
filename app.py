@@ -224,8 +224,8 @@ def get_musical_recommendation_from_scale(df, res_threshold):
 # UI
 # =========================
 def main():
-    st.set_page_config(page_title="Vocal Tessitura AI", page_icon="🎤", layout="wide")
-    st.title("🎤 Vocal Tessitura AI & Key Recommender")
+    st.set_page_config(page_title="Koemitsu", page_icon="🎤", layout="wide")
+    st.title("Koemitsu: Find your voice!")
     st.caption("Flow: Kalibrasi nada nyaman → Tentukan Do awal otomatis → Nyanyi scale → Deteksi Ceiling → Rekomendasi Key.")
 
     model = load_vocal_model()
