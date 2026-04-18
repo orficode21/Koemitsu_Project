@@ -1,8 +1,8 @@
 streamlit
 librosa
-numpy
+numpy<2.0.0
 pandas
-tensorflow-cpu
+tensorflow-cpu==2.15.0
 scipy
 Pillow
 matplotlib
