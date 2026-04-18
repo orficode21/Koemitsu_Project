@@ -1,0 +1,5 @@
+session_id,step_index,degree,target_note,target_note_display,detected_note,detected_note_display,detected_hz,voiced_ratio,voiced_confidence,cents_error,pitch_ok,pitch_status,ai_score,quality
+KOE-20260327-025746-fb082e,1,Do,D2,D2,F♯2,F#2,93.57,0.667,0.129,420.0,False,Meleset,1.0,Resonant
+KOE-20260327-025746-fb082e,2,Re,E2,E2,F2,F2,87.81,0.662,0.183,110.0,True,Masih aman,1.0,Resonant
+KOE-20260327-025746-fb082e,3,Mi,F♯2,F#2,,,,0.0,0.009,,False,Pitch tidak terbaca,0.8154,Resonant
+KOE-20260327-025746-fb082e,1,Do,D2,D2,F2,F2,87.81,0.491,0.046,310.0,False,Meleset,1.0,Resonant
