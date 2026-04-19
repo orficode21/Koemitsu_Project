@@ -192,11 +192,35 @@ with nav_status:
     st.markdown(f"<p style='text-align: center; padding-top: 10px;'>Nada {idx+1} dari {len(st.session_state.steps)}</p>", unsafe_allow_html=True)
 
 with nav_next:
-    # Tombol "Lihat Hasil" hanya muncul jika berada di nada PALING AKHIR (termasuk nada tambahan)
-    if idx == len(st.session_state.steps) - 1:
-        if st.button("🏁 LIHAT HASIL", type='primary', use_container_width=True, disabled=not current_done):
-            st.switch_page("pages/3_Result.py")
+    current_done = st.session_state.step_results[idx] is not None
+    
+    if current_done:
+        res = st.session_state.step_results[idx]
+        is_strained = (res.get('quality') == 'Strained')
+        is_last_step = (idx == len(st.session_state.steps) - 1)
+
+        # LOGIKA: Jika terdeteksi Strained (Tegang)
+        if is_strained and not is_last_step:
+            st.warning("⚠️ AI mendeteksi suaramu mulai tegang.")
+            
+            # Tombol Rekomendasi (Ke Hasil)
+            if st.button("LIHAT HASIL 🏁", type='primary', use_container_width=True, help="Disarankan berhenti di sini karena suara sudah mencapai batas nyaman."):
+                st.switch_page("pages/3_Result.py")
+            
+            # Tombol Opsional (Tetap Lanjut)
+            if st.button("Tetap Lanjut ➡", type='secondary', use_container_width=True):
+                st.session_state.current_step_index += 1
+                st.rerun()
+
+        # LOGIKA: Jika masih Resonant (Nyaman) atau sudah nada terakhir
+        else:
+            if is_last_step:
+                if st.button("🏁 LIHAT HASIL", type='primary', use_container_width=True):
+                    st.switch_page("pages/3_Result.py")
+            else:
+                if st.button("Berikutnya ➡", type='primary', use_container_width=True):
+                    st.session_state.current_step_index += 1
+                    st.rerun()
     else:
-        if st.button("Berikutnya ➡", use_container_width=True, disabled=not current_done):
-            st.session_state.current_step_index += 1
-            st.rerun()
+        # Jika belum rekam sama sekali, tombol berikutnya mati
+        st.button("Berikutnya ➡", disabled=True, use_container_width=True)
