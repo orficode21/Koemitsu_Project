@@ -8,3 +8,4 @@ Pillow
 matplotlib
 opencv-python-headless
 numba==0.59.0
+sounddevice
