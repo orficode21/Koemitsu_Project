@@ -91,28 +91,52 @@ with col_right:
     st.markdown(f"## `{progresi_pop}`")
     st.caption("Kombinasi ini akan menjamin puncak lagu tetap berada di wilayah nyamanmu.")
 
-# 7. PEMUTAR INSTRUMEN LOKAL
+# 7. PEMUTAR INSTRUMEN LOKAL (OTOMATIS SESUAI KUNCI)
 st.markdown("---")
-st.subheader("🎧 Ayo Langsung Nyanyi! (Cek Hasil)")
+st.subheader("🎧 Ayo Langsung Nyanyi! (Uji Coba)")
+
+# Ambil inisial nada saja dari rec_key_name (Misal "C# Mayor" -> "C#")
+rec_key_simple = rec_key_name.split()[0]
+
+st.write(f"AI merekomendasikan kunci **{rec_key_name}**. Berikut adalah instrumen yang sudah disesuaikan ke kunci tersebut:")
+
 LAGU_LOKAL_DB = {
     "Sempurna - Andra and The Backbone": "sempurna",
-    "Hati-Hati di Jalan - Tulus": "hati_hati_di_jalan",
-    "Sial - Mahalini": "sial",
     "Fix You - Coldplay": "fix_you",
-    "Kimi ga Kureta Mono - Secret Base": "secret_base"
 }
-pilihan_lagu = st.selectbox("Pilih Lagu Contoh:", list(LAGU_LOKAL_DB.keys()))
-nama_file = LAGU_LOKAL_DB[pilihan_lagu]
+
+pilihan_lagu = st.selectbox("Pilih Lagu untuk Dicoba:", list(LAGU_LOKAL_DB.keys()))
+slug_lagu = LAGU_LOKAL_DB[pilihan_lagu]
 path_folder = "assets/instrumentals"
 
+# Logika Pencarian File Otomatis: contoh "sempurna_C#.mp3"
+nama_file_target = f"{slug_lagu}_{rec_key_simple}"
+exts = [".mp3", ".mp4", ".wav"]
+
 with st.container(border=True):
-    # Cek file mp4 atau mp3
-    if os.path.exists(f"{path_folder}/{nama_file}.mp4"):
-        st.video(f"{path_folder}/{nama_file}.mp4")
-    elif os.path.exists(f"{path_folder}/{nama_file}.mp3"):
-        st.audio(f"{path_folder}/{nama_file}.mp3")
-    else:
-        st.warning(f"File instrumen `{nama_file}` belum ada di folder `{path_folder}`.")
+    found = False
+    for ext in exts:
+        full_path = f"{path_folder}/{nama_file_target}{ext}"
+        if os.path.exists(full_path):
+            st.markdown(f"#### Memutar: {pilihan_lagu} (Nada Dasar {rec_key_simple})")
+            if ext == ".mp4":
+                st.video(full_path)
+            else:
+                st.audio(full_path)
+            st.success(f"✅ Berhasil memuat versi {rec_key_simple}. Silakan bernyanyi!")
+            found = True
+            break
+    
+    if not found:
+        st.error(f"⚠️ Instrumen kunci {rec_key_simple} belum tersedia.")
+        st.info(f"Developer Note: Pastikan file `{nama_file_target}.mp3` sudah ada di folder `{path_folder}/`")
+        
+        # Opsi: Tampilkan tombol Transpose Manual jika file otomatis tidak ketemu
+        with st.expander("Gunakan kunci lain secara manual?"):
+            manual_key = st.selectbox("Pilih Nada Dasar Tersedia:", ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'])
+            if st.button("Cek Instrumen"):
+                # Logika yang sama untuk manual_key
+                st.write(f"Mencari file untuk kunci {manual_key}...")
 
 # 8. FORM DATA RESPONDEN (PENTING UNTUK SKRIPSI)
 st.markdown("---")
