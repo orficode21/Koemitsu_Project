@@ -81,7 +81,7 @@ with st.container(border=True):
             cents = res.get('cents_error', 0)
             score = res.get('ai_score', 0)
             # Menggunakan threshold dinamis dari session state
-            threshold = float(st.session_state.get('res_threshold', 0.55))
+            threshold = float(st.session_state.get('res_threshold', 0.90))
 
             persen_resonansi = int(score * 100)
             toleransi = float(st.session_state.get('pitch_tolerance', 150))

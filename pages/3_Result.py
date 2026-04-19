@@ -3,22 +3,25 @@ import pandas as pd
 import librosa
 import os
 from datetime import datetime
+from streamlit_gsheets import GSheetsConnection
 from src.ui_helpers import hero_box
 from src.music_logic import key_name_from_root_midi, display_note_from_midi
 
+# -- KONFIGURASI HALAMAN --
 st.set_page_config(page_title='Hasil Analisis - Koemitsu', layout='wide')
 
 # 1. Proteksi Halaman
 if 'step_results' not in st.session_state or not any(res is not None for res in st.session_state.step_results):
     st.error("Belum ada hasil analisis. Silakan selesaikan tes nada terlebih dahulu.")
-    if st.button("Kembali ke Tes"): st.switch_page("pages/2_Test.py")
+    if st.button("Kembali ke Tes"): 
+        st.switch_page("pages/2_Test.py")
     st.stop()
 
-hero_box('Langkah 3 — Hasil & Rekomendasi', 'AI telah memetakan Tessitura dan Rekomendasi Nada Dasarmu.')
+hero_box('Langkah 3 — Hasil & Rekomendasi', 'AI telah memetakan wilayah suara ternyamanmu.')
 
-# 2. Ambil Data Analisis
+# 2. Ambil Data Analisis Suara
 results = [r for r in st.session_state.step_results if r is not None]
-df = pd.DataFrame(results)
+df_voices = pd.DataFrame(results)
 
 # 3. LOGIKA BERJENJANG MENCARI CEILING (ATAP AMAN)
 threshold = float(st.session_state.get('res_threshold', 0.55))
@@ -26,173 +29,163 @@ ceiling_note = None
 status_rekomendasi = ""
 warna_status = "gray"
 
-df_level1 = df[(df['pitch_ok'] == True) & (df['ai_score'] >= threshold)]
+df_level1 = df_voices[(df_voices['pitch_ok'] == True) & (df_voices['ai_score'] >= threshold)]
 
 if not df_level1.empty:
     ceiling_note = df_level1.iloc[-1]['target_note']
-    status_rekomendasi = "Optimal (Nada Pas & Resonant)"
+    status_rekomendasi = "Optimal (Nada Pas & Merdu)"
     warna_status = "green"
 else:
-    df_level2 = df[df['ai_score'] >= threshold]
+    df_level2 = df_voices[df_voices['ai_score'] >= threshold]
     if not df_level2.empty:
         ceiling_note = df_level2.iloc[-1]['target_note']
         status_rekomendasi = "Estimasi (Berdasarkan Resonansi)"
         warna_status = "blue"
     else:
-        df_level3 = df[df['pitch_ok'] == True]
+        df_level3 = df_voices[df_voices['pitch_ok'] == True]
         if not df_level3.empty:
             ceiling_note = df_level3.iloc[-1]['target_note']
             status_rekomendasi = "Estimasi (Berdasarkan Pitch)"
             warna_status = "orange"
 
 if ceiling_note is None:
-    ceiling_note = df.iloc[-1]['target_note']
+    ceiling_note = df_voices.iloc[-1]['target_note']
     status_rekomendasi = "Batas Maksimal (Data Kurang Stabil)"
     warna_status = "red"
 
-# 4. HITUNG REKOMENDASI KEY & FAMILY CHORD
+# 4. HITUNG REKOMENDASI KEY & LOGIKA TRANSPOSISI
 ceiling_midi = int(librosa.note_to_midi(ceiling_note))
 rec_root_midi = ceiling_midi - 7
 rec_key_name = key_name_from_root_midi(rec_root_midi)
+target_pc = rec_root_midi % 12 
 
-# Logika Family Chord (I - V - vi - IV)
-PITCH_CLASSES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-idx_root = rec_root_midi % 12
-chord_I = PITCH_CLASSES[idx_root]
-chord_V = PITCH_CLASSES[(idx_root + 7) % 12]
-chord_vi = PITCH_CLASSES[(idx_root + 9) % 12] + "m"
-chord_IV = PITCH_CLASSES[(idx_root + 5) % 12]
-progresi_pop = f"{chord_I} - {chord_V} - {chord_vi} - {chord_IV}"
+# --- LOGIKA PEMETAAN GITAR & CAPO ---
+def get_guitar_advice(midi_val):
+    pc = midi_val % 12
+    guitar_families = [("C Major", 0, "C - G - Am - F"), ("G Major", 7, "G - D - Em - C"), ("D Major", 2, "D - A - Bm - G")]
+    best_fret, best_family, best_prog = 13, "", ""
+    for name, root, prog in guitar_families:
+        fret = (pc - root) % 12
+        if fret < best_fret:
+            best_fret, best_family, best_prog = fret, name, prog
+    return best_fret, best_family, best_prog
+
+capo_fret, family_name, family_prog = get_guitar_advice(target_pc)
+transpose_val = target_pc if target_pc <= 6 else target_pc - 12
 
 # 5. TAMPILAN DASHBOARD
-st.markdown(f"### Status Analisis: :{warna_status}[{status_rekomendasi}]")
+st.markdown(f"### Status Vokal: :{warna_status}[{status_rekomendasi}]")
 c1, c2, c3 = st.columns(3)
-c1.metric("Atap Aman (Ceiling)", ceiling_note)
-c2.metric("Nada Dasar Utama", rec_key_name)
-c3.metric("Skor Resonansi Tertinggi", f"{df['ai_score'].max():.2f}")
+c1.metric("Atap Aman", ceiling_note)
+c2.metric("Rekomendasi Kunci", rec_key_name)
+c3.metric("Stabilitas Maksimal", f"{int(df_voices['ai_score'].max()*100)}%")
 
 st.markdown("---")
 
-# 6. VISUALISASI & TIPS
+# 6. PETUNJUK SETTING
+st.subheader("🎵 Cara Mengatur Nada Dasar Lagu")
 col_left, col_right = st.columns([1, 1.2])
+
 with col_left:
-    st.subheader("🎯 Kesimpulan")
-    st.write(f"Batas atas kualitas suaramu berada di nada **{ceiling_note}**.")
-    st.info(f"💡 **Tips:** Jika lagu asli menggunakan kunci **C Major**, kamu cukup transpose **{rec_root_midi%12 if rec_root_midi%12 <=6 else rec_root_midi%12 - 12:+}** pada alat musikmu.")
-    
-    st.write("### Grafik Stabilitas Vokal")
-    chart_data = df[['target_note_display', 'ai_score']].copy()
-    chart_data = chart_data.rename(columns={'target_note_display': 'Nada', 'ai_score': 'Skor Resonansi'})
-    st.line_chart(chart_data.set_index('Nada'))
+    st.info(f"**Keyboard / Karaoke:**\nJika lagu di kunci C, Transpose: **{transpose_val:+}**")
+    st.success(f"**Pemain Gitar:**\nPakai Chord **{family_name.split()[0]}**, Capo Fret: **{capo_fret}**")
 
 with col_right:
-    st.subheader("🎸 Family Chord (Keluarga Kunci)")
-    st.success(f"Gunakan nada dasar **{rec_key_name}** dengan progresi chord pop ini:")
-    st.markdown(f"## `{progresi_pop}`")
-    st.caption("Kombinasi ini akan menjamin puncak lagu tetap berada di wilayah nyamanmu.")
+    st.markdown(f"**Contoh Progresi Chord ({rec_key_name}):**")
+    st.markdown(f"### `{family_prog}`")
+    chart_data = df_voices[['target_note_display', 'ai_score']].copy()
+    st.line_chart(chart_data.rename(columns={'ai_score': 'Skor'}).set_index('target_note_display'), height=150)
 
-# 7. PEMUTAR INSTRUMEN LOKAL (OTOMATIS SESUAI KUNCI)
+# 7. PEMUTAR INSTRUMEN KUSTOM
 st.markdown("---")
-st.subheader("🎧 Ayo Langsung Nyanyi! (Uji Coba)")
-
-# Ambil inisial nada saja dari rec_key_name (Misal "C# Mayor" -> "C#")
+st.subheader("🎬 Yuk, Langsung Buktikan!")
 rec_key_simple = rec_key_name.split()[0]
+LAGU_LOKAL_DB = {"Sempurna - Andra and The Backbone": "sempurna", "Fix You - Coldplay": "fix_you"}
+pilihan_lagu = st.selectbox("Pilih Lagu:", list(LAGU_LOKAL_DB.keys()))
+file_target = f"assets/instrumentals/{LAGU_LOKAL_DB[pilihan_lagu]}_{rec_key_simple}.mp4"
 
-st.write(f"AI merekomendasikan kunci **{rec_key_name}**. Berikut adalah instrumen yang sudah disesuaikan ke kunci tersebut:")
+if os.path.exists(file_target):
+    st.video(file_target)
+else:
+    st.warning(f"Video untuk kunci {rec_key_simple} sedang disiapkan.")
 
-LAGU_LOKAL_DB = {
-    "Sempurna - Andra and The Backbone": "sempurna",
-    "Fix You - Coldplay": "fix_you",
-}
-
-pilihan_lagu = st.selectbox("Pilih Lagu untuk Dicoba:", list(LAGU_LOKAL_DB.keys()))
-slug_lagu = LAGU_LOKAL_DB[pilihan_lagu]
-path_folder = "assets/instrumentals"
-
-# Logika Pencarian File Otomatis: contoh "sempurna_C#.mp3"
-nama_file_target = f"{slug_lagu}_{rec_key_simple}"
-exts = [".mp3", ".mp4", ".wav"]
-
-with st.container(border=True):
-    found = False
-    for ext in exts:
-        full_path = f"{path_folder}/{nama_file_target}{ext}"
-        if os.path.exists(full_path):
-            st.markdown(f"#### Memutar: {pilihan_lagu} (Nada Dasar {rec_key_simple})")
-            if ext == ".mp4":
-                st.video(full_path)
-            else:
-                st.audio(full_path)
-            st.success(f"✅ Berhasil memuat versi {rec_key_simple}. Silakan bernyanyi!")
-            found = True
-            break
-    
-    if not found:
-        st.error(f"⚠️ Instrumen kunci {rec_key_simple} belum tersedia.")
-        st.info(f"Developer Note: Pastikan file `{nama_file_target}.mp3` sudah ada di folder `{path_folder}/`")
-        
-        # Opsi: Tampilkan tombol Transpose Manual jika file otomatis tidak ketemu
-        with st.expander("Gunakan kunci lain secara manual?"):
-            manual_key = st.selectbox("Pilih Nada Dasar Tersedia:", ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'])
-            if st.button("Cek Instrumen"):
-                # Logika yang sama untuk manual_key
-                st.write(f"Mencari file untuk kunci {manual_key}...")
-
-# 8. FORM DATA RESPONDEN (PENTING UNTUK SKRIPSI)
+# 8. FORMULIR DATA RESPONDEN (GOOGLE SHEETS & CSV)
 st.markdown("---")
-st.subheader("📋 Formulir Responden")
-st.write("Mohon isi data di bawah ini untuk membantu penelitian saya.")
+st.subheader("📋 Simpan Hasil & Download Data")
+st.write("Silakan isi data untuk dikirim ke database riset kami.")
+
+# Inisialisasi koneksi ke Google Sheets
+try:
+    conn = st.connection("gsheets", type=GSheetsConnection)
+except:
+    conn = None
 
 with st.form("form_responden"):
-    col_f1, col_f2 = st.columns(2)
-    with col_f1:
-        nama = st.text_input("Nama Lengkap / Inisial")
-        usia = st.number_input("Usia", min_value=10, max_value=70, value=20)
-    with col_f2:
-        gender = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"])
-        tingkat_nyaman = st.select_slider("Seberapa nyaman kunci rekomendasi tadi?", options=["Sangat Tidak Nyaman", "Kurang Nyaman", "Cukup", "Nyaman", "Sangat Nyaman"], value="Nyaman")
+    f_c1, f_c2 = st.columns(2)
+    with f_c1:
+        nama_res = st.text_input("Nama / Inisial")
+        usia_res = st.number_input("Usia", 10, 70, 20)
+        gender_res = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"])
+    with f_c2:
+        tiktok_res = st.text_input("Username TikTok", placeholder="@username")
+        tingkat_nyaman = st.select_slider("Kenyamanan kunci rekomendasi?", 
+                                          options=["Tidak", "Kurang", "Cukup", "Nyaman", "Sangat Nyaman"], value="Nyaman")
+        komentar_res = st.text_area("Masukan")
     
-    komentar = st.text_area("Komentar tambahan (opsional)")
-    
-    submitted = st.form_submit_button("Submit Data Riset", type="primary")
+    submitted = st.form_submit_button("KIRIM DATA RISET 🚀", type="primary")
 
 if submitted:
-    if not nama:
-        st.error("Mohon isi nama Anda.")
+    if not nama_res:
+        st.error("Nama wajib diisi.")
     else:
-        # Siapkan data untuk disimpan
-        row_data = {
+        # Menyiapkan baris data responden
+        res_data = {
             "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "Nama": nama,
-            "Usia": usia,
-            "Gender": gender,
+            "Nama": nama_res,
+            "Usia": usia_res,
+            "Gender": gender_res,
+            "TikTok": tiktok_res,
             "Ceiling": ceiling_note,
             "Rec_Key": rec_key_name,
-            "AI_Max_Score": df['ai_score'].max(),
-            "Kepuasan_User": tingkat_nyaman,
-            "Komentar": komentar
+            "Capo": capo_fret,
+            "Satisfaction": tingkat_nyaman,
+            "Note": komentar_res,
+            "AI_Score_Max": float(df_voices['ai_score'].max())
         }
-        
-        # Simpan ke CSV lokal (Akan tersimpan di server selama sesi berjalan)
-        log_file = "data/respondent_logs.csv"
-        log_df = pd.DataFrame([row_data])
-        
-        if not os.path.isfile(log_file):
-            log_df.to_csv(log_file, index=False)
-        else:
-            log_df.to_csv(log_file, mode='a', header=False, index=False)
-            
-        st.success(f"Terima kasih {nama}! Datamu telah tersimpan untuk riset.")
+        df_res = pd.DataFrame([res_data])
+
+        # A. PROSES SIMPAN KE GOOGLE SHEETS
+        if conn:
+            try:
+                existing_data = conn.read(worksheet="Sheet1", ttl=0)
+                updated_df = pd.concat([existing_data, df_res], ignore_index=True)
+                conn.update(worksheet="Sheet1", data=updated_df)
+                st.success("✅ Data berhasil terkirim ke Google Sheets!")
+            except Exception as e:
+                st.error(f"Gagal kirim ke Google Sheets: {e}")
+
+        # B. PROSES DOWNLOAD CSV (RESPON KHUSUS BARIS INI)
+        st.info("💡 Kamu juga bisa mendownload data respondenmu di bawah ini sebagai bukti riset.")
+        csv_res_only = df_res.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 DOWNLOAD DATA RESPONDEN (CSV)",
+            data=csv_res_only,
+            file_name=f"data_responden_{nama_res}.csv",
+            mime='text/csv',
+            use_container_width=True
+        )
         st.balloons()
 
 # 9. NAVIGASI AKHIR
 st.divider()
 col_a, col_b = st.columns(2)
 with col_a:
-    if st.button("Ulangi Sesi Baru"):
+    if st.button("🔄 Ulangi Sesi Baru"):
         st.session_state.clear()
         st.switch_page("app.py")
 with col_b:
-    # Tombol download untuk jaga-jaga kalau file CSV di server hilang
-    csv_download = df.to_csv(index=False).encode('utf-8')
-    st.download_button("Download Detail Log Suara (CSV)", data=csv_download, file_name=f"log_{datetime.now().strftime('%H%M%S')}.csv")
+    # Backup: Download seluruh detail nada (bukan cuma data responden)
+    csv_voices = df_voices.to_csv(index=False).encode('utf-8')
+    st.download_button("📥 Download Log Detil Nada (CSV)", data=csv_voices, 
+                       file_name=f"log_vokal_{datetime.now().strftime('%H%M%S')}.csv",
+                       use_container_width=True)

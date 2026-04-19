@@ -6,7 +6,7 @@ from src.music_logic import manual_root_options, display_note_from_midi, key_nam
 
 st.set_page_config(page_title='Kalibrasi - Koemitsu', layout='wide')
 
-hero_box('Langkah 1 — Kalibrasi', 'Lantunkan nada nyamanmu (tinggi)')
+hero_box('Langkah 1 — Kalibrasi', 'Lantunkan "aaa" selama 2 detik dengan nada yang menurutmu nyaman (tinggi)')
 
 left, right = st.columns(2)
 with left:
