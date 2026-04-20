@@ -110,20 +110,21 @@ def card_close():
 
 def render_audio_capture(key_prefix: str, label: str, help_text: Optional[str] = None):
     st.write(label)
+    
+    # Hanya menampilkan input rekaman suara (Real-time)
     audio_file = None
     if hasattr(st, 'audio_input'):
-        audio_file = st.audio_input('Rekam suara dari mikrofon', key=f'{key_prefix}_mic', help=help_text)
-    st.caption('atau')
-    upload = st.file_uploader(
-        'Upload audio',
-        type=['wav', 'mp3', 'ogg', 'm4a', 'flac'],
-        key=f'{key_prefix}_upload',
-        help=allowed_audio_help_text(),
-    )
-    chosen = audio_file or upload
+        audio_file = st.audio_input('Klik tombol di bawah untuk mulai merekam', key=f'{key_prefix}_mic', help=help_text)
+    
+    # Variabel chosen sekarang hanya mengambil dari audio_file (perekam)
+    chosen = audio_file
+    
     audio_bytes = get_uploaded_bytes(chosen)
+    
+    # Menampilkan pemutar suara jika rekaman sudah ada (untuk cek ulang)
     if audio_bytes:
         st.audio(audio_bytes)
+        
     return chosen, audio_bytes
 
 
@@ -133,7 +134,14 @@ def render_calibration_guide() -> None:
         st.caption('Contoh vokal kalibrasi')
         st.audio(guide.read_bytes(), format='audio/wav')
     else:
-        st.caption('Opsional: taruh contoh vokal di `assets/guides/calibration_aaa.wav` kalau kamu mau ada guide suara manusia.')
+        # INI YANG KAMU UBAH:
+        st.markdown("""
+        **Cara Kalibrasi:**
+        1. Tarik napas dalam dan rileks.
+        2. Klik/Tekan ikon mic untuk mulai merekam.
+        3. Lantunkan bunyi **"aaa"** secara stabil selama **2-3 detik**.
+        4. Gunakan nada yang menurutmu **paling enak dan nyaman** (Random aja).
+        """)
 
 
 def render_note_guide(target_note: str, degree_slug: str) -> None:
@@ -151,3 +159,45 @@ def render_progress_pills(steps, completed: int) -> None:
         prefix = '✅' if idx <= completed else ('🎯' if idx == completed + 1 else '•')
         pills.append(f"<span class='step-pill'>{prefix} {step.degree}</span>")
     st.markdown(''.join(pills), unsafe_allow_html=True)
+
+def render_audio_settings_sidebar():
+    with st.sidebar:
+        st.header("⚙️ Live Tuning AI")
+        st.markdown("Gunakan ini untuk menyesuaikan sensitivitas AI dengan kondisi ruangan.")
+
+        # 1. Slider Sensitivitas Resonansi (Ambang Batas)
+        # Kita simpan langsung ke session_state
+        st.session_state.res_threshold = st.slider(
+            "Ambang Resonant (Threshold)", 
+            min_value=0.10, 
+            max_value=0.90, 
+            value=st.session_state.get('res_threshold', 0.40), 
+            step=0.05,
+            help="Semakin rendah, AI semakin mudah memberikan label 'Resonant'."
+        )
+
+        # 2. Slider Gain (Volume Mic)
+        st.session_state.mic_gain = st.slider(
+            "Sensitivitas Mic (Gain)", 
+            min_value=0.5, 
+            max_value=3.0, 
+            value=st.session_state.get('mic_gain', 1.0), 
+            step=0.1,
+            help="Naikkan jika suara responden terlalu pelan."
+        )
+
+        # 3. Slider Toleransi Pitch (Fals)
+        st.session_state.pitch_tolerance = st.slider(
+            "Toleransi Pitch (Cents)", 
+            min_value=50, 
+            max_value=300, 
+            value=st.session_state.get('pitch_tolerance', 150), 
+            step=10
+        )
+
+        st.markdown("---")
+        if st.button("♻️ Reset ke Default"):
+            st.session_state.res_threshold = 0.40
+            st.session_state.mic_gain = 1.0
+            st.session_state.pitch_tolerance = 150
+            st.rerun()

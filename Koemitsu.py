@@ -102,7 +102,7 @@ with right_col:
     card_open("🎙️ Siap Temukan Batas Suaramu?")
     st.write("Klik tombol di bawah untuk langsung menuju tahap kalibrasi nada nyaman.")
     
-    if st.button('MULAI ANALISIS SEKARANG ➔', type='primary', use_container_width=True):
+    if st.button('Mulai Analisis Sekarang ➔', type='primary', use_container_width=True):
         st.switch_page("pages/1_Calibration.py")
     card_close()
 
