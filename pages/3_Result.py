@@ -182,7 +182,7 @@ col_a, col_b = st.columns(2)
 with col_a:
     if st.button("🔄 Ulangi Sesi Baru"):
         st.session_state.clear()
-        st.switch_page("app.py")
+        st.switch_page("Koemitsu.py")
 with col_b:
     # Backup: Download seluruh detail nada (bukan cuma data responden)
     csv_voices = df_voices.to_csv(index=False).encode('utf-8')

@@ -48,7 +48,7 @@ with st.sidebar:
 # 4. Tampilan Utama: Penjelasan Projek
 hero_box(
     'Koemitsu: Temukan Suaramu!🎵', 
-    'Aplikasi untuk membantumenemukan nada dasar lagu yang paling aman dan nyaman.'
+    'Aplikasi untuk membantu menemukan nada dasar lagu yang paling aman dan nyaman.'
 )
 
 st.markdown("""
