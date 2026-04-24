@@ -3,7 +3,6 @@ import pandas as pd
 import librosa
 import os
 from datetime import datetime
-from streamlit_gsheets import GSheetsConnection
 from src.ui_helpers import hero_box
 from src.music_logic import key_name_from_root_midi, display_note_from_midi
 
@@ -59,10 +58,16 @@ rec_root_midi = ceiling_midi - 7
 rec_key_name = key_name_from_root_midi(rec_root_midi)
 target_pc = rec_root_midi % 12 
 
+# Array PITCH_CLASSES mutlak pakai Sharp (#) untuk nama file
+PITCH_CLASSES_SHARP =['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+
+# Mengambil inisial nada HANYA dengan format # (C#, D#, dll) untuk mencari file
+file_key_rekomendasi = PITCH_CLASSES_SHARP[target_pc]
+
 # --- LOGIKA PEMETAAN GITAR & CAPO ---
 def get_guitar_advice(midi_val):
     pc = midi_val % 12
-    guitar_families = [("C Major", 0, "C - G - Am - F"), ("G Major", 7, "G - D - Em - C"), ("D Major", 2, "D - A - Bm - G")]
+    guitar_families =[("C Major", 0, "C - G - Am - F"), ("G Major", 7, "G - D - Em - C"), ("D Major", 2, "D - A - Bm - G")]
     best_fret, best_family, best_prog = 13, "", ""
     for name, root, prog in guitar_families:
         fret = (pc - root) % 12
@@ -96,85 +101,55 @@ with col_right:
     chart_data = df_voices[['target_note_display', 'ai_score']].copy()
     st.line_chart(chart_data.rename(columns={'ai_score': 'Skor'}).set_index('target_note_display'), height=150)
 
-# 7. PEMUTAR INSTRUMEN KUSTOM
+# 7. PEMUTAR INSTRUMEN KUSTOM (A/B TESTING)
 st.markdown("---")
-st.subheader("🎬 Yuk, Langsung Buktikan!")
-rec_key_simple = rec_key_name.split()[0]
-LAGU_LOKAL_DB = {"Sempurna - Andra and The Backbone": "sempurna", "Fix You - Coldplay": "fix_you"}
-pilihan_lagu = st.selectbox("Pilih Lagu:", list(LAGU_LOKAL_DB.keys()))
-file_target = f"assets/instrumentals/{LAGU_LOKAL_DB[pilihan_lagu]}_{rec_key_simple}.mp4"
+st.subheader("🎬 Buktikan Bedanya! (A/B Testing)")
+st.write("Silakan nyanyikan bagian Reff pada kunci asli, lalu rasakan perbedaannya saat menyanyi dengan kunci rekomendasi AI.")
 
-if os.path.exists(file_target):
-    st.video(file_target)
-else:
-    st.warning(f"Video untuk kunci {rec_key_simple} sedang disiapkan.")
+# Database Lagu dan Original Key-nya (Pasti pakai #)
+LAGU_LOKAL_DB = {
+    "Sempurna - Andra and The Backbone": {"slug": "sempurna", "ori_key": "E"},
+    "Fix You - Coldplay": {"slug": "fix_you", "ori_key": "D#"}
+}
 
-# 8. FORMULIR DATA RESPONDEN (GOOGLE SHEETS & CSV)
+pilihan_lagu = st.selectbox("Pilih Lagu untuk Dicoba:", list(LAGU_LOKAL_DB.keys()))
+slug_lagu = LAGU_LOKAL_DB[pilihan_lagu]["slug"]
+ori_key_lagu = LAGU_LOKAL_DB[pilihan_lagu]["ori_key"]
+path_folder = "assets/instrumentals"
+
+# File Paths (Otomatis menyesuaikan penamaan C#, D#, G# dst)
+file_original = f"{path_folder}/{slug_lagu}_{ori_key_lagu}.mp4"
+file_rekomendasi = f"{path_folder}/{slug_lagu}_{file_key_rekomendasi}.mp4"
+
+col_vid1, col_vid2 = st.columns(2)
+
+# Video Kunci Asli
+with col_vid1:
+    with st.container(border=True):
+        st.markdown(f"#### 1️⃣ Kunci Asli ({ori_key_lagu} Major)")
+        st.caption("Coba nyanyikan ini dulu.")
+        if os.path.exists(file_original):
+            st.video(file_original)
+        else:
+            st.error(f"File `{slug_lagu}_{ori_key_lagu}.mp4` tidak ditemukan.")
+
+# Video Rekomendasi AI
+with col_vid2:
+    with st.container(border=True):
+        st.markdown(f"#### 2️⃣ Kunci AI ({rec_key_name})") # Teks tetap pakai yg cantik (bisa Eb atau D#)
+        st.caption("Rasakan bedanya di tenggorokanmu!")
+        if os.path.exists(file_rekomendasi):
+            st.video(file_rekomendasi)
+        else:
+            st.error(f"File `{slug_lagu}_{file_key_rekomendasi}.mp4` sedang disiapkan.")
+
+# 8. KUESIONER GOOGLE FORM (TOMBOL BESAR)
 st.markdown("---")
-st.subheader("📋 Simpan Hasil & Download Data")
-st.write("Silakan isi data untuk dikirim ke database riset kami.")
+st.subheader("📋 Isi Kuesioner Riset")
+st.write("Setelah mencoba kedua video di atas, mohon isi kuesioner singkat ini untuk data penelitian skripsi.")
 
-# Inisialisasi koneksi ke Google Sheets
-try:
-    conn = st.connection("gsheets", type=GSheetsConnection)
-except:
-    conn = None
-
-with st.form("form_responden"):
-    f_c1, f_c2 = st.columns(2)
-    with f_c1:
-        nama_res = st.text_input("Nama / Inisial")
-        usia_res = st.number_input("Usia", 10, 70, 20)
-        gender_res = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"])
-    with f_c2:
-        tiktok_res = st.text_input("Username TikTok", placeholder="@username")
-        tingkat_nyaman = st.select_slider("Kenyamanan kunci rekomendasi?", 
-                                          options=["Tidak", "Kurang", "Cukup", "Nyaman", "Sangat Nyaman"], value="Nyaman")
-        komentar_res = st.text_area("Masukan")
-    
-    submitted = st.form_submit_button("KIRIM DATA RISET 🚀", type="primary")
-
-if submitted:
-    if not nama_res:
-        st.error("Nama wajib diisi.")
-    else:
-        # Menyiapkan baris data responden
-        res_data = {
-            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "Nama": nama_res,
-            "Usia": usia_res,
-            "Gender": gender_res,
-            "TikTok": tiktok_res,
-            "Ceiling": ceiling_note,
-            "Rec_Key": rec_key_name,
-            "Capo": capo_fret,
-            "Satisfaction": tingkat_nyaman,
-            "Note": komentar_res,
-            "AI_Score_Max": float(df_voices['ai_score'].max())
-        }
-        df_res = pd.DataFrame([res_data])
-
-        # A. PROSES SIMPAN KE GOOGLE SHEETS
-        if conn:
-            try:
-                existing_data = conn.read(worksheet="Sheet1", ttl=0)
-                updated_df = pd.concat([existing_data, df_res], ignore_index=True)
-                conn.update(worksheet="Sheet1", data=updated_df)
-                st.success("✅ Data berhasil terkirim ke Google Sheets!")
-            except Exception as e:
-                st.error(f"Gagal kirim ke Google Sheets: {e}")
-
-        # B. PROSES DOWNLOAD CSV (RESPON KHUSUS BARIS INI)
-        st.info("💡 Kamu juga bisa mendownload data respondenmu di bawah ini sebagai bukti riset.")
-        csv_res_only = df_res.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="📥 DOWNLOAD DATA RESPONDEN (CSV)",
-            data=csv_res_only,
-            file_name=f"data_responden_{nama_res}.csv",
-            mime='text/csv',
-            use_container_width=True
-        )
-        st.balloons()
+# Ubah LINK_GOOGLE_FORM_KAMU dengan link G-Form yang asli
+st.link_button("📝 KLIK DI SINI UNTUK MENGISI KUESIONER PENELITIAN", "https://forms.gle/cdLoK1ehPgNGQG838", type="primary", use_container_width=True)
 
 # 9. NAVIGASI AKHIR
 st.divider()
@@ -182,9 +157,8 @@ col_a, col_b = st.columns(2)
 with col_a:
     if st.button("🔄 Ulangi Sesi Baru"):
         st.session_state.clear()
-        st.switch_page("Koemitsu.py")
+        st.switch_page("app.py") 
 with col_b:
-    # Backup: Download seluruh detail nada (bukan cuma data responden)
     csv_voices = df_voices.to_csv(index=False).encode('utf-8')
     st.download_button("📥 Download Log Detil Nada (CSV)", data=csv_voices, 
                        file_name=f"log_vokal_{datetime.now().strftime('%H%M%S')}.csv",
