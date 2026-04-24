@@ -82,20 +82,13 @@ with st.container(border=True):
             is_ok = res.get('pitch_ok', False)
             cents = res.get('cents_error', 0)
             score = res.get('ai_score', 0)
-            # Ambil threshold dari session_state sidebar (bisa diubah-ubah secara live)
             threshold = float(st.session_state.get('res_threshold', 0.40)) 
 
             persen_resonansi = int(score * 100)
             toleransi = float(st.session_state.get('pitch_tolerance', 150))
             persen_pitch = max(0, 100 - int((abs(cents) / toleransi) * 100))
 
-            if is_ok and score >= threshold:
-                st.success("### 🌟 LUAR BIASA! NADA & KUALITAS PAS")
-            elif is_ok and score < threshold:
-                st.warning("### 👍 NADA PAS, TAPI SUARA TEGANG (STRAINED)")
-            elif not is_ok:
-                st.error("### 😅 OOPS! NADA BELUM PAS")
-
+            # Tampilan Persentase AI
             c1, c2 = st.columns(2)
             c1.metric("Akurasi Nada (Pitch)", f"{persen_pitch}%", help=f"Meleset {cents} cents")
             
@@ -103,7 +96,42 @@ with st.container(border=True):
                 c2.metric("Kualitas Vokal (AI)", f"{persen_resonansi}% Resonant", delta="Aman")
             else:
                 c2.metric("Kualitas Vokal (AI)", f"{100 - persen_resonansi}% Strained", delta="Tegang", delta_color="inverse")
+
+            # ==========================================
+            # FITUR BARU: VALIDASI FISIK (HUMAN-IN-THE-LOOP)
+            # ==========================================
+            st.markdown("#### 🗣️ Validasi Fisikmu")
+            st.write("AI menilai dari suara, tapi hanya kamu yang bisa merasakan fisik tenggorokanmu.")
+            nyaman_radio = st.radio(
+                "Bagaimana rasanya di tenggorokan saat menyanyikan nada ini?",["😊 Rileks / Nyaman", "😫 Maksa / Tegang"],
+                key=f"user_comfort_{idx}"
+            )
             
+            # Simpan status fisik ke session state
+            is_user_comfortable = (nyaman_radio == "😊 Rileks / Nyaman")
+            st.session_state.step_results[idx]['user_comfort'] = is_user_comfortable
+
+            # --- ANALISIS GABUNGAN AI & MANUSIA ---
+            is_ai_resonant = (score >= threshold)
+            
+            if is_ok and is_ai_resonant and is_user_comfortable:
+                st.success("### 🌟 LUAR BIASA! NADA & KUALITAS PAS")
+                
+            elif is_ok and not is_ai_resonant and is_user_comfortable:
+                # Kasus: User merasa enak, tapi AI bilang tegang (Biasanya karena Noise Ruangan)
+                st.warning("### ⚠️ AI MENDETEKSI STRAINED, TAPI KAMU RILEKS")
+                st.info("Peringatan: Jika ruanganmu sedang berisik (ada suara AC/Kipas/Keramaian), AI mungkin salah mengartikan noise tersebut sebagai suara tegang. Coba **naikkan Sensitivitas Mic** di Sidebar dan rekam ulang.")
+                
+            elif is_ok and is_ai_resonant and not is_user_comfortable:
+                # Kasus: AI bilang enak, tapi user merasa maksa (Biasanya karena Head Voice)
+                st.warning("### ⚠️ AI MENDETEKSI RESONANT, TAPI KAMU TEGANG")
+                st.info("Peringatan: Kamu mungkin menggunakan teknik *Head Voice/Falsetto* yang membuat suara terdengar jernih bagi AI tapi lehermu tetap tegang. Harap gunakan *Chest Voice* (suara asli) untuk hasil yang valid.")
+                
+            elif is_ok and not is_ai_resonant and not is_user_comfortable:
+                st.error("### 😫 NADA PAS, TAPI SUARA TEGANG (STRAINED)")
+            else:
+                st.error("### 😅 OOPS! NADA BELUM PAS")
+
             # Tampilkan spektrogram
             with st.expander("🔍 Tampilkan Spektrogram"):
                 if f"audio_y_{idx}" in st.session_state:
@@ -126,8 +154,6 @@ with st.container(border=True):
             else:
                 with st.spinner('Menganalisis suara & membuat spektrogram...'):
                     audio_raw, y, suffix = load_audio_source(take_file)
-                    
-                    # Terapkan Mic Gain dari sidebar agar vokal mengalahkan suara kipas
                     y = y * st.session_state.get('mic_gain', 1.0) 
                     
                     st.session_state[f"audio_y_{idx}"] = y 
@@ -141,6 +167,8 @@ with st.container(border=True):
                         tolerance_cents=float(st.session_state.get('pitch_tolerance', 150))
                     )
                     
+                    # Tambahkan default comfort agar tidak error
+                    row['user_comfort'] = True
                     st.session_state.step_results[idx] = row
                     st.rerun()
 
@@ -152,8 +180,8 @@ if is_last_step and current_done:
     last_res = st.session_state.step_results[idx]
     current_thresh = float(st.session_state.get('res_threshold', 0.40))
     
-    # Syarat level up: Skor AI melebihi threshold + 10% (biar bener-bener stabil) dan Pitch OK
-    if last_res.get('ai_score', 0) >= (current_thresh + 0.10) and last_res.get('pitch_ok'):
+    # Syarat level up: Skor AI bagus, Pitch OK, DAN User merasa Rileks
+    if last_res.get('ai_score', 0) >= (current_thresh + 0.10) and last_res.get('pitch_ok') and last_res.get('user_comfort', True):
         st.markdown("---")
         st.balloons()
         st.info("🔥 **Wah, suaramu masih sangat stabil!** AI mendeteksi kamu masih bisa menyanyi lebih tinggi lagi.")
@@ -195,11 +223,12 @@ with nav_next:
         res = st.session_state.step_results[idx]
         current_thresh = float(st.session_state.get('res_threshold', 0.40))
         
-        # Murni dari AI: Dianggap Strained jika AI skornya di bawah threshold
+        # Evaluasi Strained Gabungan (Dari AI atau dari perasaan user)
         is_strained_ai = (res.get('ai_score', 0) < current_thresh)
+        is_strained_user = not res.get('user_comfort', True)
         
-        if is_strained_ai and not is_last_step:
-            st.warning("⚠️ AI mendeteksi suaramu mulai tegang. Disarankan berhenti di sini.")
+        if (is_strained_ai or is_strained_user) and not is_last_step:
+            st.warning("⚠️ Berdasarkan analisis AI atau fisikmu, suaramu telah mencapai batas. Disarankan berhenti di sini.")
             
             if st.button("LIHAT HASIL 🏁", type='primary', use_container_width=True):
                 st.switch_page("pages/3_Result.py")
@@ -212,7 +241,8 @@ with nav_next:
                 if st.button("🏁 LIHAT HASIL", type='primary', use_container_width=True):
                     st.switch_page("pages/3_Result.py")
             else:
-                # PASTIKAN KODENYA SEPERTI INI:
                 if st.button("Berikutnya ➡", type='primary', use_container_width=True):
                     st.session_state.current_step_index += 1
-                    st.rerun() # Ini untuk pindah ke nada selanjutnya
+                    st.rerun()
+    else:
+        st.button("Berikutnya ➡", disabled=True, use_container_width=True)
