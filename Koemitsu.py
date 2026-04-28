@@ -106,14 +106,4 @@ with right_col:
         st.switch_page("pages/1_Calibration.py")
     card_close()
 
-# 7. Footer Ilmiah
-st.markdown("<br>", unsafe_allow_html=True)
-with st.expander("🔍 Detail Teknis untuk Sidang/Exhibition"):
-    st.write("""
-    - **Model:** Convolutional Neural Network (CNN) 2D.
-    - **Input:** Mel-Spectrogram (128x128 pixel).
-    - **Logika Musik:** *Circle of Fifths* dengan asumsi klimaks melodi pada interval *Perfect Fifth* (7 semitone).
-    - **Validasi:** Leave-One-Singer-Out Cross-Validation (LOSO-CV) dengan rata-rata akurasi 83.54%.
-    """)
-
-st.caption("Dikembangkan oleh Lutfi Mawardi - Tugas Akhir AI & Robotics  2026")
+st.caption("Aplikasi Web ini dikembangkan untuk keperluan Tugas Akhir AI & Robotics 2026")
