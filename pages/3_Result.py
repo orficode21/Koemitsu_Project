@@ -12,7 +12,7 @@ st.set_page_config(page_title='Hasil Analisis - Koemitsu', layout='wide')
 # 1. Proteksi Halaman
 if 'step_results' not in st.session_state or not any(res is not None for res in st.session_state.step_results):
     st.error("Belum ada hasil analisis. Silakan selesaikan tes nada terlebih dahulu.")
-    if st.button("Kembali ke Tes"): 
+    if st.button("Kembali ke Uji Nada"): 
         st.switch_page("pages/2_Test.py")
     st.stop()
 

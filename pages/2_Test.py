@@ -18,7 +18,7 @@ from src.storage import session_folder
 from src.music_logic import ScaleStep, display_note 
 
 # -- KONFIGURASI HALAMAN --
-st.set_page_config(page_title='Tes Nada - Koemitsu', layout='wide')
+st.set_page_config(page_title='Uji Nada - Koemitsu', layout='wide')
 
 # Panggil Pengaturan Sidebar
 render_audio_settings_sidebar()
@@ -37,8 +37,8 @@ def plot_mel_spectrogram(y, sr=22050):
 
 # -- 1. PROTEKSI & INISIALISASI DATA --
 if 'steps' not in st.session_state or not st.session_state.steps:
-    st.warning("⚠️ Silakan lakukan kalibrasi terlebih dahulu!")
-    if st.button("Ke Halaman Kalibrasi"): st.switch_page("pages/1_Calibration.py")
+    st.warning("⚠️ Silakan lakukan Deteksi Nada Awal terlebih dahulu!")
+    if st.button("Ke Halaman Deteksi Nada Awal"): st.switch_page("pages/1_Calibration.py")
     st.stop()
 
 model = load_vocal_model()

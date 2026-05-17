@@ -3,7 +3,7 @@ from src.audio_io import load_audio_source
 from src.analysis import analyze_calibration_take
 from src.ui_helpers import hero_box, card_open, card_close, render_audio_capture, render_calibration_guide, render_audio_settings_sidebar
 
-st.set_page_config(page_title='Kalibrasi - Koemitsu', layout='wide')
+st.set_page_config(page_title='Deteksi Nada Awal - Koemitsu', layout='wide')
 
 # ==========================================
 # 🛡️ SATPAM SESI (Mencegah Error saat Refresh)
@@ -22,7 +22,7 @@ if 'calibration_result' not in st.session_state:
 
 render_audio_settings_sidebar()
 
-hero_box('Langkah 1 — Kalibrasi', 'Cari nada ternyamanmu.') 
+hero_box('Langkah 1 — Deteksi Nada Awal', 'Cari nada ternyamanmu.') 
 
 left, right = st.columns(2)
 with left:
