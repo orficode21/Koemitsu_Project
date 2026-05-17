@@ -136,7 +136,7 @@ def render_calibration_guide() -> None:
     else:
         # INI YANG KAMU UBAH:
         st.markdown("""
-        **Cara Kalibrasi:**
+        **Langkah-langkah Deteksi Nada Awal:**
         1. Tarik napas dalam dan rileks.
         2. Klik/Tekan ikon mic untuk mulai merekam.
         3. Lantunkan bunyi **"aaa"** secara stabil selama **2-3 detik**.
