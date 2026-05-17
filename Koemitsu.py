@@ -64,21 +64,21 @@ st.subheader("🛠️ Alur Pengujian")
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.markdown("#### 1. Kalibrasi Dasar")
+    st.markdown("#### 1. Deteksi Nada Awal")
     st.info("""
     **Mencari Nada untuk Do**
     \nSistem merekam nada yang menurut kamu paling nyaman (rileks). Ini digunakan sebagai titik awal (Lantai) untuk tangga nada pengujian.
     """)
 
 with col2:
-    st.markdown("#### 2. Uji Tangga Nada")
+    st.markdown("#### 2. Uji Vokal (Tangga Nada)")
     st.warning("""
     **Analisis Kualitas Real-Time**
     \nKamu akan mengikuti panduan nada naik. AI (CNN) membedakan secara visual pada spektrogram apakah suaramu masih **Resonant** atau sudah **Strained**.
     """)
 
 with col3:
-    st.markdown("#### 3. Rekomendasi Cerdas")
+    st.markdown("#### 3. Hasil Rekomendasi")
     st.success("""
     **Penentuan Nada Dasar**
     \nSistem menghitung 'Atap' aman suaramu dan memberikan rekomendasi **Kunci Lagu (Key)** serta angka **Transpose** yang paling pas untukmu.
