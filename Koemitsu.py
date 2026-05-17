@@ -71,7 +71,7 @@ with col1:
     """)
 
 with col2:
-    st.markdown("#### 2. Uji Vokal (Tangga Nada)")
+    st.markdown("#### 2. Uji Tangga Nada")
     st.warning("""
     **Analisis Kualitas Real-Time**
     \nKamu akan mengikuti panduan nada naik. AI (CNN) membedakan secara visual pada spektrogram apakah suaramu masih **Resonant** atau sudah **Strained**.
